@@ -1,13 +1,11 @@
 'use client';
 import Image from "next/image";
-import { StaticMeshGradient } from '@paper-design/shaders-react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useEffect, useState } from 'react';
 
+
 export default function Home() {
-  const [dimensions, setDimensions] = useState({ width: 1920, height: 1080 });
-  const [isMobile, setIsMobile] = useState(false);
   const [input, setInput] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isPreparingAudio, setIsPreparingAudio] = useState(false);
@@ -68,20 +66,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    function handleResize() {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setDimensions({ width, height });
-      setIsMobile(width < 768); // Standard mobile breakpoint
-    }
-
-    handleResize(); // Set initial dimensions
-    window.addEventListener('resize', handleResize);
-
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
 
   // Auto-prepare TTS when a new assistant message arrives
@@ -98,114 +82,287 @@ export default function Home() {
         prepareAndPlayTTS(text, lastAssistantMessage);
       }
     }
-  }, [lastAssistantMessage?.id, status]); // Trigger when message ID changes and status is ready
+  }, [lastAssistantMessage?.id, status, lastAssistantMessage]); // Trigger when message ID changes and status is ready
 
   return (
-    <div className="relative min-h-screen">
-      {/* Office background with glass effect */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/assets/office.png"
-          alt="Office Background"
-          fill
-          className="object-cover blur-[3px]"
-          priority
-        />
-        <div className="absolute inset-0 bg-white/30 backdrop-blur-md" />
-      </div>
-      
-      {/* Gradient overlay - only shown on desktop */}
-      {!isMobile && (
-        <div className="absolute inset-0 z-10 overflow-hidden opacity-80 transition-opacity duration-300">
-          <StaticMeshGradient
-            width={dimensions.width}
-            height={dimensions.height}
-            colors={["#ffffff", "#6200ff", "#e2a3ff", "#ff99fd"]}
-            positions={2}
-            waveX={1}
-            waveXShift={0.6}
-            waveY={1}
-            waveYShift={0.21}
-            mixing={0.93}
-            grainMixer={0}
-            grainOverlay={0}
-            rotation={270}
-          />
-        </div>
-      )}
-      <div className="relative z-20 font-sans flex flex-col items-center justify-end min-h-screen pb-8 px-4 gap-4">
-        <div className="flex flex-col items-center gap-6 w-full max-w-md">
-          {/* Loading indicator while preparing audio */}
-          {isPreparingAudio && (
-            <div className="relative bg-white/95 backdrop-blur-md rounded-2xl p-4 max-w-md shadow-xl border border-white/20 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                </div>
-                <p className="text-gray-600 text-sm">Roxie is thinking...</p>
+    <div className="relative min-h-screen bg-gray-900 overflow-hidden">
+      {/* Detective Header Bar */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-gray-800 border-b-2 border-yellow-500">
+        <div className="flex items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-4">
+            {/* Detective Badge */}
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
+                <span className="text-black font-bold text-sm">🔍</span>
               </div>
-              {/* Speech bubble tail */}
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[10px] border-l-transparent border-r-transparent border-t-white/95"></div>
+              <div className="text-white">
+                <div className="text-sm font-bold">DETECTIVE UNIT</div>
+                <div className="text-xs text-gray-400">Badge #2024</div>
               </div>
             </div>
-          )}
 
-          {/* Speech bubble - only shows when displayedMessage is ready */}
-          {displayedMessage && !isPreparingAudio && (
-             <div className="relative bg-white/95 backdrop-blur-md rounded-2xl p-4 max-w-md shadow-xl border border-white/20 animate-fade-in">
-               <div className="flex items-start gap-2">
-                 <p className="text-gray-900 text-sm font-medium flex-1">
-                   {displayedMessage.parts.map((part: any, index: number) =>
-                     part.type === 'text' ? <span key={index}>{part.text}</span> : null
-                   )}
-                 </p>
-                 {isPlayingAudio && (
-                   <div className="flex-shrink-0 w-4 h-4 animate-pulse">
-                     <div className="w-full h-full bg-blue-500 rounded-full animate-ping"></div>
-                   </div>
-                 )}
-               </div>
-               {/* Speech bubble tail */}
-               <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                 <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[10px] border-l-transparent border-r-transparent border-t-white/95"></div>
-               </div>
-             </div>
-          )}
-
-          {/* Cat image */}
-          <div className="flex justify-center">
-            <Image
-              src="/assets/cat.png"
-              alt="Cat"
-              width={300}
-              height={250}
-              className="object-contain"
-            />
+            {/* Case Status */}
+            <div className="hidden md:flex items-center gap-4 ml-8">
+              <div className="text-white">
+                <div className="text-xs text-red-400 font-mono">CASE #2024-FISHTREATS</div>
+                <div className="text-sm font-bold text-yellow-400">INTERROGATION IN PROGRESS</div>
+              </div>
+            </div>
           </div>
 
-          {/* Chat input */}
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              if (input.trim()) {
-                sendMessage({ text: input });
-                setInput('');
-              }
-            }}
-             className="w-full"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder={status !== 'ready' ? "Thinking..." : "Type your message here..."}
-              disabled={status !== 'ready'}
-               className="w-full p-3 border border-white/30 rounded-lg focus:border-blue-500 focus:outline-none bg-white/95 backdrop-blur-md shadow-lg text-gray-900 placeholder-gray-500 disabled:opacity-50 disabled:bg-white/80"
-            />
-          </form>
+          {/* Recording Indicator */}
+          <div className="flex items-center gap-3">
+            <div className="recording-indicator w-3 h-3 bg-red-500 rounded-full"></div>
+            <span className="text-red-400 text-sm font-mono">REC</span>
+            {/* Clock */}
+            <div className="text-white text-sm font-mono ml-4">
+              {new Date().toLocaleTimeString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dark Interrogation Room Background */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+        {/* Subtle Office Background */}
+        <div className="absolute inset-0 opacity-20">
+          <Image
+            src="/assets/office.png"
+            alt="Office Background"
+            fill
+            className="object-cover blur-[5px] grayscale"
+            priority
+          />
+        </div>
+
+        {/* Dramatic Lighting Effect */}
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-96 h-96 bg-yellow-300 opacity-20 blur-3xl rounded-full interrogation-flicker"></div>
+      </div>
+
+      {/* Main Interrogation Interface */}
+      <div className="relative z-20 pt-20 min-h-screen">
+        {/* Evidence Board - Left Side */}
+        <div className="absolute left-4 top-24 w-64 h-80 bg-cork bg-opacity-90 border-8 border-amber-900 p-4 hidden lg:block">
+          <div className="text-amber-100 text-sm font-bold mb-3 text-center">EVIDENCE BOARD</div>
+
+          {/* Evidence Items */}
+          <div className="space-y-3">
+            <div className="evidence-hover bg-red-600 text-white p-2 rounded text-xs transform -rotate-1">
+              <div className="font-bold">MISSING:</div>
+              <div>12 Fish Treats</div>
+            </div>
+
+            <div className="evidence-hover bg-blue-600 text-white p-2 rounded text-xs transform rotate-2">
+              <div className="font-bold">WITNESS:</div>
+              <div>Jat (Sister Cat)</div>
+            </div>
+
+            <div className="evidence-hover bg-green-600 text-white p-2 rounded text-xs transform -rotate-2">
+              <div className="font-bold">SUSPECTS:</div>
+              <div>Roxie, Johnny, Jasmina</div>
+            </div>
+
+            <div className="evidence-hover bg-purple-600 text-white p-2 rounded text-xs transform rotate-1">
+              <div className="font-bold">MOTIVE:</div>
+              <div>Extreme Hunger</div>
+            </div>
+          </div>
+
+          {/* Red String Connections */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+            <line x1="20" y1="60" x2="200" y2="120" stroke="red" strokeWidth="1" opacity="0.7"/>
+            <line x1="50" y1="100" x2="180" y2="80" stroke="red" strokeWidth="1" opacity="0.7"/>
+          </svg>
+        </div>
+
+        {/* Two-Way Mirror Frame */}
+        <div className="flex justify-center items-center min-h-[600px] px-4">
+          <div className="one-way-mirror mirror-effect w-full max-w-2xl h-96 rounded-lg flex items-center justify-center relative">
+            {/* Mirror Reflection Effect */}
+            <div className="absolute inset-4 bg-gradient-to-br from-gray-600/30 to-gray-800/50 rounded"></div>
+
+            {/* Interrogation Table */}
+            <div className="interrogation-table absolute bottom-0 left-8 right-8 h-12 rounded-t-lg"></div>
+
+            {/* Suspect Area */}
+            <div className="flex flex-col items-center gap-4 relative z-10">
+              {/* Suspect Name Plate */}
+              <div className="bg-black text-white px-4 py-2 text-sm font-mono border border-gray-600">
+                SUSPECT: ROXIE - CASE #2024-FT
+              </div>
+
+              {/* Mugshot Style Cat Presentation */}
+              <div className="relative">
+                {/* Height Measurement Backdrop */}
+                <div className="absolute -left-8 top-0 bottom-0 w-6 bg-white/10 flex flex-col justify-between text-xs text-white font-mono">
+                  <div>6&apos;</div>
+                  <div>5&apos;</div>
+                  <div>4&apos;</div>
+                  <div>3&apos;</div>
+                  <div>2&apos;</div>
+                  <div>1&apos;</div>
+                </div>
+
+                {/* Cat Image with Mugshot Effect */}
+                <div className={`suspect-entrance ${isPlayingAudio ? 'nervous-twitch' : ''} dramatic-shadow`}>
+                  <Image
+                    src="/assets/cat.png"
+                    alt="Suspect Roxie"
+                    width={250}
+                    height={200}
+                    className="object-contain"
+                  />
+                </div>
+
+                {/* Prisoner Number */}
+                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black text-white px-3 py-1 text-xs font-mono border">
+                  #247681 - FISH THEFT
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Speech/Interrogation Transcript Area */}
+        <div className="flex justify-center px-4 mt-8">
+          <div className="w-full max-w-2xl">
+            {/* Loading indicator while preparing audio */}
+            {isPreparingAudio && (
+              <div className="bg-gray-800 border border-red-500 rounded-lg p-4 mb-4 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="police-lights w-4 h-4 rounded-full"></div>
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                    <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                    <div className="w-2 h-2 bg-red-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                  </div>
+                  <p className="text-red-300 text-sm font-mono">SUSPECT IS PREPARING RESPONSE...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Interrogation Transcript Speech Bubble */}
+            {displayedMessage && !isPreparingAudio && (
+              <div className="bg-gray-800 border-l-4 border-yellow-500 rounded-lg p-6 mb-4 animate-fade-in dramatic-shadow">
+                <div className="flex items-start gap-4">
+                  {/* Transcript Header */}
+                  <div className="flex-shrink-0">
+                    <div className="text-yellow-400 text-xs font-mono mb-1">SUSPECT STATEMENT</div>
+                    <div className="text-gray-400 text-xs font-mono">{new Date().toLocaleTimeString()}</div>
+                  </div>
+
+                  {/* Statement Content */}
+                  <div className="flex-1">
+                    <div className="text-white text-base leading-relaxed typewriter-text">
+                      {displayedMessage.parts.map((part: any, index: number) =>
+                        part.type === 'text' ? <span key={index}>{String(part.text || '')}</span> : null
+                      )}
+                    </div>
+
+                    {/* Audio Playing Indicator */}
+                    {isPlayingAudio && (
+                      <div className="flex items-center gap-2 mt-3 text-green-400">
+                        <div className="flex gap-1">
+                          <div className="w-1 h-4 bg-green-400 animate-bounce" style={{animationDelay: '0ms'}}></div>
+                          <div className="w-1 h-4 bg-green-400 animate-bounce" style={{animationDelay: '100ms'}}></div>
+                          <div className="w-1 h-4 bg-green-400 animate-bounce" style={{animationDelay: '200ms'}}></div>
+                          <div className="w-1 h-4 bg-green-400 animate-bounce" style={{animationDelay: '300ms'}}></div>
+                          <div className="w-1 h-4 bg-green-400 animate-bounce" style={{animationDelay: '400ms'}}></div>
+                        </div>
+                        <span className="text-xs font-mono">AUDIO PLAYBACK</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Transcript Official Seal */}
+                <div className="absolute top-2 right-2 text-xs text-gray-500 font-mono transform rotate-12 opacity-50">
+                  OFFICIAL TRANSCRIPT
+                </div>
+              </div>
+            )}
+
+            {/* Detective Input Interface */}
+            <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="text-yellow-400 text-sm font-mono">DETECTIVE QUESTIONING:</div>
+                <div className="flex-1 border-t border-gray-600"></div>
+                <div className="text-gray-400 text-xs font-mono">SECURE LINE</div>
+              </div>
+
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (input.trim()) {
+                    sendMessage({ text: input });
+                    setInput('');
+                  }
+                }}
+                className="w-full"
+              >
+                <input
+                  type="text"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder={status !== 'ready' ? "Processing..." : "Enter your question for the suspect..."}
+                  disabled={status !== 'ready'}
+                  className="w-full p-4 bg-gray-700 border border-gray-600 rounded-lg focus:border-yellow-500 focus:outline-none text-white placeholder-gray-400 disabled:opacity-50 font-mono"
+                />
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Case File - Right Side */}
+        <div className="absolute right-4 top-24 w-64 h-80 bg-amber-50 border-4 border-amber-600 p-4 hidden lg:block transform rotate-1 dramatic-shadow">
+          <div className="text-amber-800 text-sm font-bold mb-3 text-center border-b border-amber-600 pb-2">
+            CASE FILE #2024-FT
+          </div>
+
+          <div className="space-y-3 text-xs text-amber-900">
+            <div className="border-l-2 border-red-500 pl-2">
+              <div className="font-bold">INCIDENT:</div>
+              <div>Missing Fish Treats</div>
+              <div className="text-gray-600">Qty: 12 pieces</div>
+            </div>
+
+            <div className="border-l-2 border-blue-500 pl-2">
+              <div className="font-bold">FAMILY MEMBERS:</div>
+              <div>• Jade (Mother)</div>
+              <div>• Joshua (Father)</div>
+              <div>• Jat (Sister, Witness)</div>
+            </div>
+
+            <div className="border-l-2 border-green-500 pl-2">
+              <div className="font-bold">ROOMMATES:</div>
+              <div>• Johnny (Bunny)</div>
+              <div>• Jasmina (Bunny)</div>
+            </div>
+
+            <div className="border-l-2 border-purple-500 pl-2">
+              <div className="font-bold">STATUS:</div>
+              <div className="text-red-600 font-bold">INTERROGATION</div>
+            </div>
+          </div>
+
+          {/* Official Stamps */}
+          <div className="absolute bottom-4 right-4 transform rotate-12 opacity-60">
+            <div className="border-2 border-red-600 rounded-full w-16 h-16 flex items-center justify-center text-red-600 text-xs font-bold">
+              URGENT
+            </div>
+          </div>
+        </div>
+
+        {/* Coffee Cup - Detective Atmosphere */}
+        <div className="absolute bottom-8 left-8 hidden lg:block">
+          <div className="relative">
+            <div className="w-16 h-20 bg-gradient-to-b from-amber-800 to-amber-900 rounded-b-full border-2 border-amber-700"></div>
+            <div className="absolute top-2 left-2 right-2 h-4 bg-black rounded-full opacity-80"></div>
+            {/* Steam Effect */}
+            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+              <div className="coffee-steam-effect w-1 h-8 bg-white opacity-30 rounded-full"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
