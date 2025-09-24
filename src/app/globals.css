@@ -129,6 +129,57 @@ body {
   }
 }
 
+/* Character-specific animations */
+@keyframes suspect-fidget {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2px) rotate(-0.5deg); }
+  50% { transform: translateX(0) rotate(0.5deg); }
+  75% { transform: translateX(2px) rotate(-0.3deg); }
+}
+
+@keyframes witness-calm {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.02) rotate(0.2deg); }
+}
+
+@keyframes family-supportive {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(-1px); opacity: 0.95; }
+}
+
+@keyframes hostile-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-3px); }
+  20% { transform: translateX(3px); }
+  30% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  50% { transform: translateX(-1px); }
+}
+
+@keyframes cooperative-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  }
+}
+
+@keyframes character-switch {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px) scale(0.9);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(0) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
 /* Class Definitions */
 .interrogation-flicker {
   animation: flicker 3s infinite;
@@ -166,6 +217,31 @@ body {
 
 .nervous-twitch {
   animation: suspect-nervous 0.1s ease-in-out;
+}
+
+/* Character personality-based animations */
+.suspect-fidgeting {
+  animation: suspect-fidget 2s ease-in-out infinite;
+}
+
+.witness-calm {
+  animation: witness-calm 3s ease-in-out infinite;
+}
+
+.family-supportive {
+  animation: family-supportive 2.5s ease-in-out infinite;
+}
+
+.cooperation-hostile {
+  animation: hostile-shake 0.3s ease-in-out;
+}
+
+.cooperation-cooperative {
+  animation: cooperative-glow 2s ease-in-out infinite;
+}
+
+.character-entrance {
+  animation: character-switch 1s ease-out;
 }
 
 .mirror-effect {

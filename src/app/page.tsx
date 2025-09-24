@@ -2,7 +2,32 @@
 import Image from "next/image";
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { characters, getCharacterById } from '@/data/characters';
+import { Character } from '@/types/characters';
+import CharacterSelector from '@/components/CharacterSelector';
+import CharacterPlaceholder from '@/components/CharacterPlaceholder';
+
+// Component to handle image loading with fallback
+const ImageWithFallback = ({ character, width, height }: { character: Character, width: number, height: number }) => {
+  const [imageError, setImageError] = useState(false);
+
+  if (imageError || character.image.includes('placeholder')) {
+    return <CharacterPlaceholder character={character} width={width} height={height} />;
+  }
+
+  return (
+    <Image
+      src={character.image}
+      alt={`${character.role} ${character.name}`}
+      width={width}
+      height={height}
+      className="object-contain max-w-full max-h-full"
+      onError={() => setImageError(true)}
+      style={{ maxWidth: `${width}px`, maxHeight: `${height}px` }}
+    />
+  );
+};
 
 
 export default function Home() {
@@ -10,10 +35,23 @@ export default function Home() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isPreparingAudio, setIsPreparingAudio] = useState(false);
   const [displayedMessage, setDisplayedMessage] = useState<any>(null);
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
+  const [currentCharacter, setCurrentCharacter] = useState<Character>(getCharacterById('roxie') || characters[0]);
+  const [chatKey, setChatKey] = useState(0); // Force chat recreation when character changes
+
+  // Create a fresh transport for each character change
+  const chatTransport = useMemo(() => {
+    console.log('Creating new transport for character:', currentCharacter.name);
+    return new DefaultChatTransport({
       api: '/api/chat',
-    }),
+      body: {
+        character: currentCharacter,
+      },
+    });
+  }, [currentCharacter, chatKey]);
+
+  const { messages, sendMessage, status } = useChat({
+    transport: chatTransport,
+    id: `chat-${currentCharacter.id}-${chatKey}`, // Unique ID per character to force recreation
   });
 
   // Function to prepare and play TTS audio
@@ -21,13 +59,13 @@ export default function Home() {
     try {
       setIsPreparingAudio(true);
 
-      // Fetch TTS audio
+      // Fetch TTS audio with character info
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, character: currentCharacter }),
       });
 
       if (!response.ok) {
@@ -83,6 +121,29 @@ export default function Home() {
       }
     }
   }, [lastAssistantMessage?.id, status, lastAssistantMessage]); // Trigger when message ID changes and status is ready
+
+  // Handle character switching - clear messages and switch character
+  const handleCharacterSelect = (character: Character) => {
+    console.log('Switching from', currentCharacter.name, 'to', character.name);
+    setCurrentCharacter(character);
+    setDisplayedMessage(null); // Clear previous character's message
+    setChatKey(prev => prev + 1); // Force chat recreation with new character
+
+    // Log the switch for debugging
+    setTimeout(() => {
+      console.log('Character fully switched to:', character.name, 'with ID:', character.id);
+    }, 100);
+  };
+
+  // Get character-specific styling
+  const getCharacterAccentColor = (character: Character) => {
+    switch (character.role) {
+      case 'suspect': return 'border-red-500 text-red-400';
+      case 'witness': return 'border-blue-500 text-blue-400';
+      case 'family': return 'border-purple-500 text-purple-400';
+      default: return 'border-yellow-500 text-yellow-400';
+    }
+  };
 
   return (
     <div className="relative min-h-screen bg-gray-900 overflow-hidden">
@@ -145,33 +206,54 @@ export default function Home() {
         <div className="absolute left-2 top-20 w-56 h-72 bg-cork bg-opacity-90 border-6 border-amber-900 p-3 hidden lg:block">
           <div className="text-amber-100 text-sm font-bold mb-3 text-center">EVIDENCE BOARD</div>
 
-          {/* Evidence Items */}
+          {/* Evidence Items - Dynamic based on current character */}
           <div className="space-y-2">
-            <div className="evidence-hover bg-red-600 text-white p-1.5 rounded text-xs transform -rotate-1">
-              <div className="font-bold">MISSING:</div>
-              <div>12 Fish Treats</div>
-            </div>
+            {currentCharacter.evidence.length > 0 ? (
+              currentCharacter.evidence.slice(0, 4).map((evidence, index) => {
+                const rotations = ['-rotate-1', 'rotate-2', '-rotate-2', 'rotate-1'];
+                const bgColors = {
+                  'red': 'bg-red-600',
+                  'blue': 'bg-blue-600',
+                  'green': 'bg-green-600',
+                  'purple': 'bg-purple-600',
+                  'orange': 'bg-orange-600',
+                  'yellow': 'bg-yellow-600'
+                };
 
-            <div className="evidence-hover bg-blue-600 text-white p-1.5 rounded text-xs transform rotate-2">
-              <div className="font-bold">WITNESS:</div>
-              <div>Jat (Sister Cat)</div>
-            </div>
-
-            <div className="evidence-hover bg-green-600 text-white p-1.5 rounded text-xs transform -rotate-2">
-              <div className="font-bold">SUSPECTS:</div>
-              <div>Roxie, Johnny, Jasmina</div>
-            </div>
-
-            <div className="evidence-hover bg-purple-600 text-white p-1.5 rounded text-xs transform rotate-1">
-              <div className="font-bold">MOTIVE:</div>
-              <div>Extreme Hunger</div>
-            </div>
+                return (
+                  <div
+                    key={evidence.id}
+                    className={`evidence-hover ${bgColors[evidence.color]} text-white p-1.5 rounded text-xs transform ${rotations[index]}`}
+                  >
+                    <div className="font-bold">{evidence.type.toUpperCase()}:</div>
+                    <div>{evidence.title}</div>
+                    <div className="text-xs opacity-90 mt-0.5">{evidence.description.substring(0, 30)}...</div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="evidence-hover bg-gray-600 text-white p-1.5 rounded text-xs transform rotate-1">
+                <div className="font-bold">NO EVIDENCE:</div>
+                <div>Clean Record</div>
+              </div>
+            )}
           </div>
 
-          {/* Red String Connections */}
+          {/* Dynamic String Connections based on evidence count */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <line x1="20" y1="60" x2="200" y2="120" stroke="red" strokeWidth="1" opacity="0.7"/>
-            <line x1="50" y1="100" x2="180" y2="80" stroke="red" strokeWidth="1" opacity="0.7"/>
+            {currentCharacter.evidence.map((_, index) => {
+              const startY = 60 + (index * 35);
+              const endY = 80 + ((index + 1) * 25);
+              return (
+                <line
+                  key={index}
+                  x1="20" y1={startY} x2="200" y2={endY}
+                  stroke={currentCharacter.role === 'suspect' ? 'red' : currentCharacter.role === 'witness' ? 'blue' : 'purple'}
+                  strokeWidth="1"
+                  opacity="0.7"
+                />
+              );
+            })}
           </svg>
         </div>
 
@@ -186,43 +268,65 @@ export default function Home() {
 
             {/* Suspect Area */}
             <div className="flex flex-col items-center gap-2 relative z-10">
-              {/* Suspect Name Plate */}
-              <div className="bg-black text-white px-3 py-1 text-xs font-mono border border-gray-600">
-                SUSPECT: ROXIE - CASE #2024-FT
+              {/* Character Name Plate */}
+              <div className={`bg-black text-white px-3 py-1 text-xs font-mono border border-gray-600 ${getCharacterAccentColor(currentCharacter)} mb-2`}>
+                {currentCharacter.role.toUpperCase()}: {currentCharacter.name.toUpperCase()} - CASE #2024-FT
               </div>
 
-              {/* Mugshot Style Cat Presentation */}
-              <div className="relative">
+              {/* Mugshot Style Character Presentation */}
+              <div className="relative w-64 h-52 mx-auto">
                 {/* Height Measurement Backdrop */}
-                <div className="absolute -left-6 top-0 bottom-0 w-4 bg-white/10 flex flex-col justify-between text-xs text-white font-mono">
+                <div className="absolute -left-6 top-0 h-48 w-4 bg-white/10 flex flex-col justify-between text-xs text-white font-mono py-1">
+                  <div>5&apos;</div>
                   <div>4&apos;</div>
                   <div>3&apos;</div>
                   <div>2&apos;</div>
                   <div>1&apos;</div>
                 </div>
 
-                {/* Cat Image with Mugshot Effect */}
-                <div className={`suspect-entrance ${isPlayingAudio ? 'nervous-twitch' : ''} dramatic-shadow`}>
-                  <Image
-                    src="/assets/cat.png"
-                    alt="Suspect Roxie"
-                    width={180}
-                    height={140}
-                    className="object-contain"
+                {/* Character Image Container - Bigger Size */}
+                <div className={`
+                  character-entrance dramatic-shadow
+                  w-60 h-48 mx-auto flex items-center justify-center overflow-hidden bg-gray-900/50 border border-gray-600
+                  ${isPlayingAudio ? 'nervous-twitch' : ''}
+                  ${currentCharacter.role === 'suspect' ? 'suspect-fidgeting' : ''}
+                  ${currentCharacter.role === 'witness' ? 'witness-calm' : ''}
+                  ${currentCharacter.role === 'family' ? 'family-supportive' : ''}
+                  ${currentCharacter.personality.cooperation === 'hostile' ? 'cooperation-hostile' : ''}
+                  ${currentCharacter.personality.cooperation === 'cooperative' ? 'cooperation-cooperative' : ''}
+                  ${currentCharacter.personality.nervousness === 'high' ? 'nervous-twitch' : ''}
+                `}>
+                  <ImageWithFallback
+                    character={currentCharacter}
+                    width={220}
+                    height={180}
                   />
                 </div>
 
-                {/* Prisoner Number */}
-                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 bg-black text-white px-2 py-0.5 text-xs font-mono border">
-                  #247681
-                </div>
+                {/* Prisoner Number - Always positioned below image container */}
+                {currentCharacter.prisonerNumber && (
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-black text-white px-2 py-0.5 text-xs font-mono border">
+                    {currentCharacter.prisonerNumber}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Speech/Interrogation Transcript Area */}
+        {/* Character Selection Panel */}
         <div className="flex justify-center px-4 mt-4">
+          <div className="w-full max-w-3xl mx-auto mb-4">
+            <CharacterSelector
+              characters={characters}
+              currentCharacter={currentCharacter}
+              onCharacterSelect={handleCharacterSelect}
+            />
+          </div>
+        </div>
+
+        {/* Speech/Interrogation Transcript Area */}
+        <div className="flex justify-center px-4">
           <div className="w-full max-w-3xl mx-auto">
             {/* Loading indicator while preparing audio */}
             {isPreparingAudio && (
@@ -241,11 +345,17 @@ export default function Home() {
 
             {/* Interrogation Transcript Speech Bubble */}
             {displayedMessage && !isPreparingAudio && (
-              <div className="bg-gray-800 border-l-4 border-yellow-500 rounded-lg p-3 mb-3 animate-fade-in dramatic-shadow overflow-hidden">
+              <div className={`
+                bg-gray-800 border-l-4 rounded-lg p-3 mb-3 animate-fade-in dramatic-shadow overflow-hidden
+                ${getCharacterAccentColor(currentCharacter).split(' ')[0]}
+                ${currentCharacter.personality.cooperation === 'cooperative' ? 'cooperation-cooperative' : ''}
+              `}>
                 <div className="flex flex-col md:flex-row md:items-start gap-2">
                   {/* Transcript Header */}
                   <div className="flex-shrink-0">
-                    <div className="text-yellow-400 text-xs font-mono mb-0.5">SUSPECT STATEMENT</div>
+                    <div className={`text-xs font-mono mb-0.5 ${getCharacterAccentColor(currentCharacter).split(' ')[1]}`}>
+                      {currentCharacter.role.toUpperCase()} STATEMENT
+                    </div>
                     <div className="text-gray-400 text-xs font-mono">{new Date().toLocaleTimeString()}</div>
                   </div>
 
@@ -319,28 +429,48 @@ export default function Home() {
 
           <div className="space-y-2 text-xs text-amber-900">
             <div className="border-l-2 border-red-500 pl-2">
-              <div className="font-bold">INCIDENT:</div>
-              <div>Missing Fish Treats</div>
-              <div className="text-gray-600">Qty: 12 pieces</div>
+              <div className="font-bold">SUBJECT:</div>
+              <div>{currentCharacter.name} ({currentCharacter.species})</div>
+              <div className="text-gray-600">Role: {currentCharacter.role}</div>
             </div>
 
             <div className="border-l-2 border-blue-500 pl-2">
-              <div className="font-bold">FAMILY:</div>
-              <div>• Jade (Mother)</div>
-              <div>• Joshua (Father)</div>
-              <div>• Jat (Sister, Witness)</div>
+              <div className="font-bold">STATUS:</div>
+              <div className={`font-bold ${
+                currentCharacter.status === 'prime_suspect' ? 'text-red-600' :
+                currentCharacter.status === 'under_investigation' ? 'text-orange-600' :
+                currentCharacter.status === 'cleared' ? 'text-green-600' :
+                'text-gray-600'
+              }`}>
+                {currentCharacter.status.replace('_', ' ').toUpperCase()}
+              </div>
             </div>
 
             <div className="border-l-2 border-green-500 pl-2">
-              <div className="font-bold">ROOMMATES:</div>
-              <div>• Johnny (Bunny)</div>
-              <div>• Jasmina (Bunny)</div>
+              <div className="font-bold">COOPERATION:</div>
+              <div className={`${
+                currentCharacter.personality.cooperation === 'hostile' ? 'text-red-600' :
+                currentCharacter.personality.cooperation === 'reluctant' ? 'text-orange-600' :
+                currentCharacter.personality.cooperation === 'neutral' ? 'text-gray-600' :
+                'text-green-600'
+              }`}>
+                {currentCharacter.personality.cooperation.toUpperCase()}
+              </div>
             </div>
 
-            <div className="border-l-2 border-purple-500 pl-2">
-              <div className="font-bold">STATUS:</div>
-              <div className="text-red-600 font-bold">INTERROGATION</div>
-            </div>
+            {currentCharacter.motive && (
+              <div className="border-l-2 border-purple-500 pl-2">
+                <div className="font-bold">MOTIVE:</div>
+                <div>{currentCharacter.motive}</div>
+              </div>
+            )}
+
+            {currentCharacter.alibi && (
+              <div className="border-l-2 border-yellow-500 pl-2">
+                <div className="font-bold">ALIBI:</div>
+                <div>{currentCharacter.alibi.substring(0, 40)}...</div>
+              </div>
+            )}
           </div>
 
           {/* Official Stamps */}
